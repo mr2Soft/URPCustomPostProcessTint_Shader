@@ -26,6 +26,7 @@ public class URPCustomPostProcessTintPass : ScriptableRenderPass
     {
         this.material = material;
         this.settings = settings;
+        Debug.Log($"(Construktor) Pass setting: {settings.tintColor.ToString()} @{settings.tintIntensity} intensity");
     }
 
     public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData)
@@ -47,7 +48,7 @@ public class URPCustomPostProcessTintPass : ScriptableRenderPass
         // Set shader parameters
         material.SetFloat("_TintIntensity", settings.tintIntensity.value);
         material.SetColor("_TintColor", settings.tintColor.value);
-
+        Debug.Log($"Material setting: {settings.tintColor.ToString()} @{settings.tintIntensity} intensity");
         // Blit from camera color target to temp texture and apply the tint effect
         Blitter.BlitCameraTexture(cmd, cameraColorTarget, tempTextureHandle, material, 0);
 
@@ -103,7 +104,7 @@ public class URPCustomPostProcessTintFeature : ScriptableRendererFeature
             Debug.LogError("volumeSettings missing!");
             return;
         }
-
+        Debug.Log($"(Create) setting: {volumeSettings.settings.tintColor.ToString()} @{volumeSettings.settings.tintIntensity} intensity");
         pass = new URPCustomPostProcessTintPass(material, volumeSettings.settings)
         {
             //renderPassEvent = RenderPassEvent.AfterRenderingTransparents
