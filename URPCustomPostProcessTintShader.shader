@@ -37,9 +37,6 @@ Shader "Custom/URPCustomPostProcessTintShader"
             {
                 float4 color = tex2D(_MainTex, i.uv);
                 color.rgb += _TintColor.rgb * _TintIntensity;
-
-                // Debug: Überprüfe den Tint-Farbwert
-                return float4(_TintColor.rgb * _TintIntensity, 1.0);
                 return color;
             }
             ENDHLSL
