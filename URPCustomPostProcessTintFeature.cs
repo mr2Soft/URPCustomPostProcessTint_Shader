@@ -1,7 +1,9 @@
 using System;
 using UnityEngine;
+using UnityEngine.Experimental.Rendering;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.Rendering.Universal.Internal;
 
 //// CS-File must be named like the feature - or URP-High Fidelity-Renderer cant find
 ////
@@ -18,10 +20,17 @@ using UnityEngine.Rendering.Universal;
 /// </summary>
 public class URPCustomPostProcessTintPass : ScriptableRenderPass
 {
+
+    private CopyDepthPass c;
     private Material material;
     private URPCustomPostProcessTintSettings settings;
-    private RTHandle cameraColorTarget;
-    private RTHandle tempTextureHandle;
+    //old
+    private RTHandle cameraColorTarget; 
+    private RTHandle tempTextureHandle; //storing texture
+    //new
+    private RTHandle source;      //cameraColorTarget?? same?
+    private RTHandle destination; //tempTextureHandle?? same?
+
     public URPCustomPostProcessTintPass(Material material, URPCustomPostProcessTintSettings settings)
     {
         this.material = material;
@@ -29,13 +38,22 @@ public class URPCustomPostProcessTintPass : ScriptableRenderPass
         Debug.Log($"(Construktor) Pass setting: {settings.tintColor.ToString()} @{settings.tintIntensity} intensity");
     }
 
+    public void Setup(RTHandle sourceTRHandle, RTHandle destinationRTHandle)
+    {
+        this.source = sourceTRHandle; //cameraDepthTargetHandle
+        this.destination = destinationRTHandle; //m_DepthRTHandle
+    }
+
     public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData)
     {
-        // Setup the camera color target using RTHandle
-        cameraColorTarget = renderingData.cameraData.renderer.cameraColorTargetHandle;
+        //in Sample from Unity done in SetupRenderPasses
+
+
+        // Setup the camera color target using RTHandle (they are stored in the pass-class)
+        this.cameraColorTarget = renderingData.cameraData.renderer.cameraColorTargetHandle;
         // Create a temporary RTHandle for processing
         RenderTextureDescriptor cameraTextureDescriptor = renderingData.cameraData.cameraTargetDescriptor;
-        RenderingUtils.ReAllocateIfNeeded(ref tempTextureHandle, cameraTextureDescriptor, name: "_TempTintTexture");
+        RenderingUtils.ReAllocateIfNeeded(ref this.tempTextureHandle, cameraTextureDescriptor, name: "_TempTintTexture");
  
     }
 
@@ -87,6 +105,10 @@ public class URPCustomPostProcessTintFeature : ScriptableRendererFeature
     public Shader shader;
     private Material material;
     private URPCustomPostProcessTintPass pass;
+
+    private RTHandle m_SCR_Handle;
+    private const string k_DepthRTName = "_URPCustomPostProcessingTintTexture"; //name of texture (just unique for feature)
+
     //public URPCustomPostProcessTintSettings settings = new URPCustomPostProcessTintSettings();
 
     public override void Create()
@@ -108,18 +130,40 @@ public class URPCustomPostProcessTintFeature : ScriptableRendererFeature
         pass = new URPCustomPostProcessTintPass(material, volumeSettings.settings)
         {
             //renderPassEvent = RenderPassEvent.AfterRenderingTransparents
-            renderPassEvent = volumeSettings.settings.renderPassEvent
+            renderPassEvent = RenderPassEvent.AfterRenderingOpaques
         };
     }
 
     public override void SetupRenderPasses(ScriptableRenderer renderer, in RenderingData renderingData)
     {
+        // Create an RTHandle for storing the depth
+        var desc = renderingData.cameraData.cameraTargetDescriptor;
+        desc.graphicsFormat = GraphicsFormat.None;
+        desc.msaaSamples = 1; //???
+
+        RenderingUtils.ReAllocateIfNeeded(ref m_SCR_Handle, desc, FilterMode.Bilinear, TextureWrapMode.Clamp, name: k_DepthRTName);
+        pass.Setup(renderer.cameraColorTargetHandle, m_SCR_Handle); //connect pass with camera and texture
+
         base.SetupRenderPasses(renderer, renderingData);
     }
 
     public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
     {
+        if (renderingData.cameraData.cameraType != CameraType.Game)
+            //do not render in editor
+            return;
+
         renderer.EnqueuePass(pass);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        //added disposal of variables
+        m_SCR_Handle?.Release();     //clear RTHandle
+        CoreUtils.Destroy(material); //dispose material
+        //reset pass vars
+        pass = null;
+        base.Dispose(disposing);
     }
 
 }
