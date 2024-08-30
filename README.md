@@ -1,4 +1,7 @@
 # URPCustomPostProcessTint_Shader
+
+https://unity.com/de/resources/the-universal-render-pipeline-cookbook-unity-2022-lts-edition?isGated=false
+
 Custom Shader in HLSL for Unity in URP 14.0.11 (Unity 2022.3.43f1 LTS)
 
 
